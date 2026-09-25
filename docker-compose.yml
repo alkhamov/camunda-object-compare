@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: object-compare-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+
+  camunda:
+    image: camunda/camunda-bpm-platform:7.22.0
+    container_name: object-compare-camunda
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      CAMUNDA_BPM_DATABASE_TYPE: h2
+      CAMUNDA_BPM_DATABASE_SCHEMA_UPDATE: true
+      CAMUNDA_BPM_ADMIN_USER_ID: demo
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: demo
+
+  worker:
+    build:
+      context: ./worker
+    container_name: object-compare-worker
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - camunda
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      APP_MONGO_URI: mongodb://mongo:27017/object_compare
+      APP_CAMUNDA_BASE_URL: http://camunda:8080/engine-rest
+      APP_CAMUNDA_WORKER_ID: object-compare-worker
+    ports:
+      - "8081:8081"
+
+volumes:
+  mongo-data:

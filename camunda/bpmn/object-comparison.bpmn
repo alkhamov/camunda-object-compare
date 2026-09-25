@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="object-comparison" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start comparison">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="retrieve-object-a" name="Retrieve Object A" camunda:type="external" camunda:topic="retrieve-object-a">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="retrieve-object-b" name="Retrieve Object B" camunda:type="external" camunda:topic="retrieve-object-b">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="evaluate-comparison" name="Evaluate comparison" camunda:decisionRef="object-comparison" camunda:mapDecisionResult="singleResult" camunda:resultVariable="comparisonResult">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:endEvent id="EndEvent_1" name="Comparison complete">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="retrieve-object-a" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="retrieve-object-a" targetRef="retrieve-object-b" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="retrieve-object-b" targetRef="evaluate-comparison" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="evaluate-comparison" targetRef="EndEvent_1" />
+  </bpmn:process>
+</bpmn:definitions>

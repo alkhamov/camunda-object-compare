@@ -1,0 +1,29 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: object-compare-worker
+  data:
+    mongodb:
+      uri: ${APP_MONGO_URI:mongodb://localhost:27017/object_compare}
+
+app:
+  mongo:
+    uri: ${APP_MONGO_URI:mongodb://localhost:27017}
+    database: ${APP_MONGO_DB:object_compare}
+
+camunda:
+  bpm:
+    auto-deployment-enabled: true
+    deployment-resource-pattern: classpath*:**/*.bpmn,classpath*:**/*.dmn
+    admin-user:
+      id: demo
+      password: demo
+  client:
+    base-url: ${APP_CAMUNDA_BASE_URL:http://localhost:8080/engine-rest}
+    worker-id: ${APP_CAMUNDA_WORKER_ID:object-compare-worker}
+    lock-duration: 10000
+    max-tasks: 1
+    async-response-timeout: 10000
+    default-serialization-format: application/json

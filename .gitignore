@@ -1,0 +1,32 @@
+# Build outputs
+/target/
+**/target/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Maven / Gradle
+.gradle/
+.mvn/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker / local runtime
+*.local
+.env
+.env.*
+
+# Temporary files
+*.tmp
+*.swp
