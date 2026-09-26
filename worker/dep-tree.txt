@@ -1,0 +1,2 @@
+com.example:object-compare-worker:jar:0.1.0-SNAPSHOT
+\- org.mongodb:mongodb-driver-sync:jar:4.11.1:compile
