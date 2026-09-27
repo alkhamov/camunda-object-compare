@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+    xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+    xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+    xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+    xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+    xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+    id="object-comparison-v2-definitions"
+    name="Object Comparison V2"
+    namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    Decision 1:
+    DMN itself defines which characteristics are relevant for comparison.
+  -->
+  <decision
+      id="comparison-configuration-v2"
+      name="Comparison Configuration"
+      camunda:historyTimeToLive="30">
+
+    <variable
+        id="comparisonConfiguration"
+        name="comparisonConfiguration" />
+
+    <literalExpression>
+      <text>["characteristicA", "characteristicC"]</text>
+    </literalExpression>
+  </decision>
+
+  <!--
+    Decision 2:
+    Compare only characteristics defined by Comparison Configuration.
+  -->
+  <decision
+      id="object-comparison-v2"
+      name="Object Comparison V2"
+      camunda:historyTimeToLive="30">
+
+    <variable
+        id="comparisonResult"
+        name="comparisonResult"
+        typeRef="boolean" />
+
+    <informationRequirement id="info-configuration">
+      <requiredDecision href="#comparison-configuration-v2" />
+    </informationRequirement>
+
+    <informationRequirement id="info-obj-a">
+      <requiredInput href="#objectA" />
+    </informationRequirement>
+
+    <informationRequirement id="info-obj-b">
+      <requiredInput href="#objectB" />
+    </informationRequirement>
+
+    <literalExpression>
+      <text>
+        if objectA = null or objectB = null then false
+        else every characteristicName in comparisonConfiguration satisfies
+          some a in objectA.serviceCharacteristic satisfies
+            a.name = characteristicName and
+            some b in objectB.serviceCharacteristic satisfies
+              b.name = characteristicName and
+              a.value.value = b.value.value
+      </text>
+    </literalExpression>
+
+  </decision>
+
+  <!-- External inputs -->
+  <inputData id="objectA" name="objectA" />
+  <inputData id="objectB" name="objectB" />
+
+  <!-- DRD diagram -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_V2">
+
+      <dmndi:DMNShape
+          id="DMNShape_Configuration"
+          dmnElementRef="comparison-configuration-v2">
+        <dc:Bounds height="80" width="200" x="250" y="60" />
+      </dmndi:DMNShape>
+
+      <dmndi:DMNShape
+          id="DMNShape_ObjectA"
+          dmnElementRef="objectA">
+        <dc:Bounds height="60" width="140" x="40" y="220" />
+      </dmndi:DMNShape>
+
+      <dmndi:DMNShape
+          id="DMNShape_ObjectB"
+          dmnElementRef="objectB">
+        <dc:Bounds height="60" width="140" x="40" y="340" />
+      </dmndi:DMNShape>
+
+      <dmndi:DMNShape
+          id="DMNShape_Comparison"
+          dmnElementRef="object-comparison-v2">
+        <dc:Bounds height="80" width="200" x="500" y="260" />
+      </dmndi:DMNShape>
+
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

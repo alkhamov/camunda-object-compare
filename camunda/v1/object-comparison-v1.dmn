@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="object-comparison-definitions" name="Object Comparison" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="object-comparison" name="Object Comparison" camunda:historyTimeToLive="30">
+    <variable id="comparisonResult" name="comparisonResult" typeRef="boolean" />
+    <informationRequirement id="info-obj-a">
+      <requiredInput href="#objectA" />
+    </informationRequirement>
+    <informationRequirement id="info-obj-b">
+      <requiredInput href="#objectB" />
+    </informationRequirement>
+    <literalExpression>
+      <text>
+        if objectA = null or objectB = null then false
+        else every a in objectA.serviceCharacteristic satisfies
+          some b in objectB.serviceCharacteristic satisfies
+            a.name = b.name and a.value.value = b.value.value
+      </text>
+    </literalExpression>
+  </decision>
+
+  <inputData id="objectA" name="objectA" />
+  <inputData id="objectB" name="objectB" />
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_1" dmnElementRef="object-comparison">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>
