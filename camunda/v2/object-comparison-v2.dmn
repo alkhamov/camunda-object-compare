@@ -56,12 +56,20 @@
     <literalExpression>
       <text>
         if objectA = null or objectB = null then false
-        else every characteristicName in comparisonConfiguration satisfies
-          some a in objectA.serviceCharacteristic satisfies
-            a.name = characteristicName and
+  else every characteristicName in comparisonConfiguration satisfies
+    (
+      some a in objectA.serviceCharacteristic satisfies
+        (
+          a.name = characteristicName and
+          (
             some b in objectB.serviceCharacteristic satisfies
-              b.name = characteristicName and
-              a.value.value = b.value.value
+              (
+                b.name = characteristicName and
+                a.value.value = b.value.value
+              )
+          )
+        )
+    )
       </text>
     </literalExpression>
 
