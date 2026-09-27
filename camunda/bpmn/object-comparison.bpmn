@@ -12,7 +12,7 @@
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:outgoing>Flow_3</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:businessRuleTask id="evaluate-comparison" name="Evaluate comparison" camunda:decisionRef="object-comparison" camunda:mapDecisionResult="singleResult" camunda:resultVariable="comparisonResult">
+    <bpmn:businessRuleTask id="evaluate-comparison" name="Evaluate comparison" camunda:decisionRef="object-comparison" camunda:mapDecisionResult="singleEntry" camunda:resultVariable="comparisonResult">
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_4</bpmn:outgoing>
     </bpmn:businessRuleTask>
