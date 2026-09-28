@@ -162,6 +162,31 @@ specs/
     ├── tasks.md                # Implementation tasks
     └── quickstart.md           # Reproducible runtime validation
 ```
+## Development Approach
+
+This PoC was developed using a **spec-first approach with GitHub Spec Kit**.
+
+The implementation was driven by a set of evolving specification artifacts rather than starting directly from application code. The repository therefore includes the specification, architecture research, data model, implementation plan, task breakdown, and reproducible quickstart alongside the implementation.
+
+```text
+spec.md
+   ↓
+research.md / data-model.md
+   ↓
+plan.md
+   ↓
+tasks.md
+   ↓
+implementation
+   ↓
+quickstart.md
+```
+
+The specification was also updated as the PoC evolved from the initial V1 comparison model to the configurable V2 design, keeping the documented architecture aligned with the implemented solution.
+
+The Spec Kit artifacts are available under:
+
+[`specs/001-json-object-compare/`](specs/001-json-object-compare/)
 
 ## Scope
 
