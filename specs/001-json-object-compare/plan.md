@@ -6,29 +6,41 @@
 
 ## Summary
 
-This feature creates a minimal local proof of concept that compares two stored JSON objects using Camunda 7 BPMN orchestration and a DMN decision model. The runtime will consist of Camunda 7, MongoDB, and a thin Java worker application. The worker retrieves full JSON payloads from MongoDB and exposes them as process variables; BPMN orchestrates the retrieval and DMN invocation; and DMN/FEEL owns the configurable comparison logic for the relevant `serviceCharacteristic` names and comparison semantics.
+This feature implements a minimal local proof of concept that compares two stored JSON objects using Camunda 7 BPMN orchestration, a DMN decision model with configurable comparison rules, and a thin Java worker application. The runtime consists of Camunda 7, MongoDB, and a worker service running under Docker Compose. The worker retrieves complete JSON objects from MongoDB and exposes them as process variables; BPMN orchestrates the retrieval and DMN invocation; and DMN/FEEL owns all characteristic navigation, selection, extraction, and comparison logic. The evolved V2 architecture demonstrates explicit DMN ownership of the comparison configuration through a separate DMN decision.
 
 ## Technical Context
 
-**Language/Version**: Java 17 with Spring Boot 2.7.x, using the Camunda 7 Spring Boot starter on Camunda 7.22.x
+**Language/Version**: Java 17, Spring Boot 2.7.18, Camunda 7.22.0, MongoDB 7
 
-**Primary Dependencies**: Camunda 7 BPMN engine + DMN engine, Spring Boot 2.7.x, MongoDB Java driver, Docker Compose, optional Camunda Modeler
+**Runtime Stack**: Docker Compose with three services:
+- **Camunda**: Camunda 7.22.0 platform (BPMN engine, DMN engine, REST API, Cockpit UI)
+- **MongoDB**: MongoDB 7 (application object storage, initialized with seed data)
+- **Worker**: Spring Boot 2.7.18 service with Camunda External Task Client library and MongoDB Java driver
 
-**Compatibility Decision (Phase 0 research)**: We do not assume Java 21 + Spring Boot 3.x compatibility with Camunda 7. Official Camunda 7 Spring Boot starter documentation states the starter requires Java 17, and the safest local proof-of-concept stack is the established Camunda 7.22.x + Java 17 + Spring Boot 2.7.x combination. The engine itself may support newer Java runtimes in general, but the worker stack is intentionally bounded to the documented starter-compatible configuration to keep the implementation reproducible and low-risk.
+**Architecture Pattern**: 
+- BPMN orchestration: process retrieval flow and DMN invocation
+- DMN decision models: V2 architecture with separate Comparison Configuration decision
+- External Tasks: Java ExternalTaskHandler implementations for retrieve-object-a and retrieve-object-b topics
+- MongoDB driver: independent connection for object retrieval (separate from Camunda engine database)
 
-**Storage**: MongoDB 7 running locally via Docker Compose with a persisted volume
+**Database Configuration**:
+- **Application Storage**: MongoDB 7 for domain objects (objects collection with serviceCharacteristic array structure)
+- **Camunda Engine**: H2 in-memory database for process instances, decision history, and engine state (suitable for local PoC)
 
-**Testing**: JUnit 5 for worker tests; DMN decisions validated via Camunda DMN/unit-style checks; BPMN integration tests for retrieval → decision → boolean result
+**Current Validation Approach**: Manual integration testing using the running Docker Compose environment:
+- Camunda REST API or Camunda Cockpit to start process instances
+- MongoDB seed data for test objects
+- Boolean comparison result verification through process instance history
 
-**Target Platform**: macOS developer machines using Docker Compose for the complete local runtime
+**Target Platform**: macOS developer machines using Docker Compose for reproducible local runtime
 
-**Project Type**: local orchestration / decision proof-of-concept service
+**Project Type**: Local orchestration/decision proof-of-concept service
 
-**Performance Goals**: compare small JSON documents (< 2 MB each) in a single process invocation with sub-second end-to-end execution in local development
+**Performance Goals**: Compare small JSON documents (< 2 MB each) in a single process invocation with sub-second end-to-end execution in local development
 
-**Constraints**: local-only runtime, no UI, exactly two JSON objects in v1, no comparison logic in application code or BPMN, DMN model must be redeployable independently
+**Constraints**: Local-only runtime, no UI, exactly two JSON objects, no comparison logic in Java or BPMN, DMN model independently deployable
 
-**Scale/Scope**: proof of concept for a small object-comparison workflow; no multi-object, streaming, or advanced transformation scenarios
+**Scale/Scope**: Proof of concept for small object-comparison workflow; no multi-object, streaming, or advanced transformation scenarios
 
 ## Constitution Check
 
@@ -62,65 +74,119 @@ specs/001-json-object-compare/
 ### Source Code (repository root)
 
 ```text
-.docker/
-├── camunda/
-├── mongo/
-├── worker/
-
 camunda/
 ├── bpmn/
-│   └── object-comparison.bpmn
+│   └── object-comparison.bpmn             # Base BPMN artifact
 ├── dmn/
-│   └── object-comparison.dmn
-├── scripts/
-│   ├── start-local.sh
-│   └── stop-local.sh
+│   └── object-comparison.dmn              # Base DMN artifact
+├── v1/                                    # Baseline PoC implementation (asymmetric semantics)
+│   ├── object-comparison-v1.bpmn
+│   └── object-comparison-v1.dmn
+└── v2/                                    # Current intended architecture (explicit config)
+    ├── object-comparison-v2.bpmn
+    └── object-comparison-v2.dmn
 
 worker/
 ├── src/
 │   ├── main/
 │   │   ├── java/
+│   │   │   └── com/example/objectcompare/
+│   │   │       ├── config/                # Spring Boot configuration
+│   │   │       ├── service/               # External-task handlers and object retrieval
+│   │   │       └── ObjectCompareApplication.java
 │   │   └── resources/
-│   └── test/
-│       └── java/
+│   │       └── application.yml
+│   └── test/                              # Test suite (future work)
 ├── pom.xml
-└── application.yml
+└── Dockerfile
 
 mongo/
 ├── init/
-│   └── seed-data.js
-└── data/
+│   └── seed-data.js                       # MongoDB initialization script
+└── data/                                  # Persisted volume mount
 
-docker-compose.yml
+docker-compose.yml                         # Defines camunda, mongo, worker services
 ```
 
-**Structure Decision**: Keep the proof of concept intentionally small and conventional: one root-level Docker Compose file, one Camunda configuration area, one MongoDB initialization area, and one thin Java worker application. This structure supports the constitution’s local runtime and separation-of-responsibilities constraints without introducing unnecessary infrastructure or abstraction layers.
+**Structure Decision**: Intentionally minimal, conventional structure aligned with Docker Compose deployment:
+- Base BPMN/DMN artifacts retained for project reference
+- Versioned V1/V2 artifacts document architectural evolution; V2 represents current intended design
+- Single worker application with external-task handlers and MongoDB retrieval service
+- MongoDB initialization isolated in init/ directory with persisted volume for local development
+- Docker Compose as the primary runtime mechanism
 
 ## Phase plan
 
-### Phase 0: Research and decision resolution
+### Phase 0: Research and decision resolution (COMPLETED)
 
-- Confirm the local runtime topology: Camunda 7 + MongoDB + worker under Docker Compose.
-- Confirm the worker responsibility boundary: retrieve both full JSON objects, expose both object structures intact as process variables, and keep all comparison logic out of Java. The worker must not extract, filter, select, normalize, map, or otherwise inspect individual `serviceCharacteristic` entries for comparison purposes, and it must not know the configured characteristic names.
-- Confirm the DMN configuration pattern: the DMN model owns all navigation, selection, value extraction, and comparison logic via FEEL; the worker passes the complete objects and leaves decision semantics to DMN.
-- Confirm the compatible technology stack: Camunda 7 Spring Boot starter requires Java 17, so the project will not assume Java 21 + Spring Boot 3.x compatibility. We will use a safe Camunda 7.22.x release on Java 17 and Spring Boot 2.7.x for the local proof of concept, and document the exact version in implementation setup.
-- Confirm the minimal validation path: local start, seed sample objects, trigger BPMN process, inspect boolean result.
+- ✓ Confirmed runtime topology: Camunda 7 + MongoDB + worker under Docker Compose
+- ✓ Confirmed worker responsibility boundary: retrieve complete JSON objects from MongoDB, expose as process variables with complete object content without business-level filtering, selection, extraction, normalization, or transformation. Worker implements ExternalTaskHandler to handle retrieve-object-a and retrieve-object-b topics; does not inspect serviceCharacteristic or know configured comparison set
+- ✓ Confirmed DMN architecture: DMN model (V2) owns all object navigation, characteristic selection via configuration decision, nested value extraction, and comparison logic via FEEL
+- ✓ Confirmed technology stack: Java 17, Spring Boot 2.7.18 (for documented Camunda 7.22.0 starter compatibility), MongoDB 7, Docker Compose local runtime
+- ✓ Confirmed validation path: Docker Compose startup, MongoDB seed data initialization, REST API or Camunda Cockpit process invocation, boolean result inspection
 
-### Phase 1: Design and contracts
+### Phase 1: Design and contracts (COMPLETED)
 
-- Define the persisted JSON object model and the `serviceCharacteristic` array semantics.
-- Define the BPMN process variables and the DMN decision input/output contract.
-- Create the local startup, validation, and teardown instructions.
-- Document the change mechanism for DMN-only reconfiguration without code or BPMN changes.
+- ✓ Defined persisted JSON object model: MongoDB documents with nested serviceCharacteristic array and value.value structure
+- ✓ Defined BPMN process variables and DMN contract:
+  - Process inputs: objectAId, objectBId (string IDs for MongoDB retrieval)
+  - After retrieve-object-a: objectA (complete MongoDB document as Map)
+  - After retrieve-object-b: objectB (complete MongoDB document as Map)
+  - After evaluate-comparison: comparisonResult (boolean)
+- ✓ Documented V2 DRD structure: Comparison Configuration decision provides characteristic list → Object Comparison V2 decision receives objectA, objectB, and comparisonConfiguration → returns comparisonResult
+- ✓ Documented DMN-only change mechanism: edit Comparison Configuration decision's FEEL expression (list of characteristic names), redeploy DMN file; no Java or BPMN changes required
 
-### Phase 2: Implementation (future work)
+### Phase 2: Implementation (COMPLETED)
 
-- Add Docker Compose configuration for Camunda 7 and MongoDB.
-- Add a thin Java worker that fetches Object A and Object B from MongoDB.
-- Deploy the BPMN process and DMN decision into the local Camunda runtime.
-- Validate the true/false comparison scenarios against the seed data set.
-- Confirm DMN-only updates can alter comparison behavior without rebuilding the worker or BPMN process.
+#### 2.1 Runtime Environment
+- ✓ Docker Compose stack operational: three services (camunda, mongo, worker)
+- ✓ Camunda 7.22.0 configured with H2 in-memory engine database, REST API at localhost:8080/engine-rest
+- ✓ MongoDB 7 initialized with seed data (mongo/init/seed-data.js), persisted volume (mongo-data), accessible at localhost:27017
+- ✓ Worker Spring Boot application built from worker/ directory, connects to Camunda via External Task Client at docker-compose network address, connects to MongoDB independently at docker-compose network address
+
+#### 2.2 Worker Implementation - External Task Pattern
+- ✓ Java ExternalTaskHandler implementations for two retrieval topics:
+  - RetrieveObjectAHandler (topic: retrieve-object-a)
+  - RetrieveObjectBHandler (topic: retrieve-object-b)
+- ✓ Each handler:
+  - Retrieves process variable (objectAId or objectBId)
+  - Calls ObjectRetrievalService.fetchObject() to query MongoDB objects collection
+  - Receives complete BSON Document, converts to Map<String, Object> (technical serialization; no business filtering)
+  - Completes external task with externalTaskService.complete(), setting objectA or objectB process variable
+- ✓ BPMN service tasks configured as external: camunda:type="external" camunda:topic="retrieve-object-a" (and retrieve-object-b)
+
+#### 2.3 BPMN Orchestration
+- ✓ Base BPMN process structure: Start → Retrieve Object A → Retrieve Object B → Evaluate Comparison → End
+- ✓ V1 BPMN (process id: "object-comparison"): maps to object-comparison DMN decision
+- ✓ V2 BPMN (process id: "object-comparison-v2"): maps to object-comparison-v2 DMN decision
+- ✓ Business rule task configured: camunda:decisionRef="object-comparison-v2" (or object-comparison for V1), camunda:mapDecisionResult="singleEntry", camunda:resultVariable="comparisonResult"
+
+#### 2.4 DMN Decision Models
+- ✓ V1 (baseline): decision id="object-comparison" with asymmetric FEEL logic
+  - Semantics: every characteristic in Object A must exist in Object B with equal value
+  - Object A implicitly defines required comparison set
+  - Characteristics in Object B not in Object A are ignored
+- ✓ V2 (current intended architecture): 
+  - comparison-configuration-v2 decision: returns explicit list of characteristic names (currently ["characteristicA", "characteristicC"])
+  - object-comparison-v2 decision: depends on comparison-configuration-v2 + objectA + objectB inputs
+  - FEEL logic: for each configured characteristic name, finds matching entries in both objects and compares nested values
+  - Missing configured characteristics result in false
+
+#### 2.5 Validation
+- ✓ Manual integration validation via Docker Compose:
+  - Start environment: docker-compose up -d
+  - Camunda REST API at localhost:8080/engine-rest to trigger process instances
+  - Camunda Cockpit for process instance inspection
+  - Inspect process instance history for comparisonResult variable
+  - Stop environment: docker-compose down
 
 ## Complexity Tracking
 
-No constitution violations are expected for this project. The design intentionally avoids unnecessary services or abstraction layers, which keeps the runtime compliant and easy to operate locally.
+No constitution violations present. The design maintains clean separation of concerns:
+
+- **Orchestration**: BPMN process flow only (Start → Retrieve A → Retrieve B → Evaluate → End)
+- **Worker responsibility**: External task handlers retrieve complete objects and set process variables (no business comparison logic)
+- **Comparison logic**: DMN/FEEL exclusively owns characteristic selection via configuration decision, extraction, and comparison semantics
+- **Runtime**: Docker Compose local deployment with minimal services (Camunda engine + MongoDB app storage + worker)
+
+The evolved V2 architecture demonstrates how DMN configuration decision enables business rule changes (which characteristics to compare) without requiring Java code changes or BPMN process redefinition.

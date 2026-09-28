@@ -12,9 +12,9 @@
 
 **Purpose**: Project initialization and local runtime scaffolding
 
-- [ ] T001 Create the local project structure per plan: `docker-compose.yml`, `.docker/`, `camunda/`, `mongo/`, and `worker/` at the repository root.
-- [ ] T002 Initialize the worker Maven project in `worker/pom.xml` with Java 17, Spring Boot 2.7.x, the Camunda 7.22.x Spring Boot starter, and the MongoDB Java driver.
-- [ ] T003 [P] Create the base config and deployment directories: `worker/src/main/resources/`, `worker/src/test/`, `camunda/bpmn/`, `camunda/dmn/`, `mongo/init/`, and `mongo/data/`.
+- [x] T001 Create the local project structure per plan: `docker-compose.yml`, `.docker/`, `camunda/`, `mongo/`, and `worker/` at the repository root.
+- [x] T002 Initialize the worker Maven project in `worker/pom.xml` with Java 17, Spring Boot 2.7.x, the Camunda 7.22.x Spring Boot starter, and the MongoDB Java driver.
+- [x] T003 [P] Create the base config and deployment directories: `worker/src/main/resources/`, `camunda/bpmn/`, `camunda/dmn/`, `mongo/init/`, and `mongo/data/`.
 
 ---
 
@@ -24,11 +24,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Configure `docker-compose.yml` to start Camunda 7 and MongoDB locally with the required persisted volume and initialization path.
-- [ ] T005 [P] Add `worker/application.yml` and the worker configuration needed for Camunda and MongoDB connectivity in the local runtime.
-- [ ] T006 [P] Implement the MongoDB access layer in `worker/src/main/java/` to fetch both complete JSON documents without value extraction or field selection in Java.
-- [ ] T007 Define the BPMN process-variable contract in `camunda/bpmn/object-comparison.bpmn` and the DMN input/output contract in `camunda/dmn/object-comparison.dmn` so the worker passes complete object payloads to DMN.
-- [ ] T008 Create the seed fixture documents in `mongo/init/seed-data.js` that exercise matching and non-matching `serviceCharacteristic` scenarios for the initial validation path.
+- [x] T004 Configure `docker-compose.yml` to start Camunda 7 and MongoDB locally with the required persisted volume and initialization path.
+- [x] T005 [P] Add `worker/application.yml` and the worker configuration needed for Camunda and MongoDB connectivity in the local runtime.
+- [x] T006 [P] Implement the MongoDB access layer in `worker/src/main/java/` to fetch both complete JSON documents without value extraction or field selection in Java.
+- [x] T007 Define the BPMN process-variable contract in `camunda/bpmn/object-comparison.bpmn` and the DMN input/output contract in `camunda/dmn/object-comparison.dmn` so the worker passes complete object payloads to DMN.
+- [x] T008 Create the seed fixture documents in `mongo/init/seed-data.js` that exercise matching and non-matching `serviceCharacteristic` scenarios for the initial validation path.
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -42,12 +42,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement the worker retrieval service in `worker/src/main/java/` to fetch object A and object B from MongoDB as complete JSON payloads and expose both objects as process variables without extracting `serviceCharacteristic` entries in Java.
-- [ ] T010 [US1] Implement the BPMN orchestration in `camunda/bpmn/object-comparison.bpmn` so the process retrieves both objects, invokes the DMN decision, and stores the boolean result as process data.
-- [ ] T011 [US1] Implement the DMN decision in `camunda/dmn/object-comparison.dmn` to accept both complete objects and return a single boolean `comparisonResult` using FEEL expressions.
-- [ ] T012 [US1] Ensure the DMN logic evaluates the explicit relevant comparison set and ignores unrelated fields outside that configured set as required by FR-011 and FR-012.
-- [ ] T013 [US1] Validate the success path in the local runtime by running the comparison against a matching dataset and confirming the process result is `true`.
-- [ ] T014 [US1] Validate the failure path in the local runtime by running the comparison against a differing dataset and confirming the process result is `false`.
+- [x] T009 [US1] Implement the worker retrieval service in `worker/src/main/java/` to fetch object A and object B from MongoDB as complete JSON payloads and expose both objects as process variables without extracting `serviceCharacteristic` entries in Java.
+- [x] T010 [US1] Implement the BPMN orchestration in `camunda/bpmn/object-comparison.bpmn` so the process retrieves both objects, invokes the DMN decision, and stores the boolean result as process data.
+- [x] T011 [US1] Implement the DMN decision in `camunda/dmn/object-comparison.dmn` to accept both complete objects and return a single boolean `comparisonResult` using FEEL expressions.
+- [x] T012 [US1] Ensure the DMN logic evaluates the Relevant Characteristic Set as defined by the DMN model. For every configured characteristic: it must exist in both objects, and the corresponding values must compare equal. A missing configured characteristic results in false. Characteristics outside the configured set are ignored.
+- [x] T013 [US1] Validate the success path in the local runtime by running the comparison against a matching dataset and confirming the process result is `true`.
+- [x] T014 [US1] Validate the failure path in the local runtime by running the comparison against a differing dataset and confirming the process result is `false`.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -61,10 +61,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Update the DMN configuration design in `camunda/dmn/object-comparison.dmn` so the relevant characteristic names are declared in DMN rather than in Java or BPMN.
-- [ ] T016 [US2] Encode the FEEL comparison logic in `camunda/dmn/object-comparison.dmn` so it selects, extracts, and compares the configured values within the DMN model itself, leaving the worker blind to the configured names.
+- [x] T015 [US2] Update the DMN configuration design in `camunda/dmn/object-comparison.dmn` so the relevant characteristic names are declared in DMN rather than in Java or BPMN.
+- [x] T016 [US2] Encode the FEEL comparison logic in `camunda/dmn/object-comparison.dmn` so it selects, extracts, and compares the configured values within the DMN model itself, leaving the worker blind to the configured names.
 - [ ] T017 [US2] Document the DMN-only reconfiguration flow in `specs/001-json-object-compare/quickstart.md` so a rule maintainer can replace the comparison set or comparison semantics without rebuilding the worker or BPMN process.
-- [ ] T018 [US2] Validate the rule-change path by deploying a revised DMN model, rerunning the same process, and confirming the result reflects the updated configuration without code or BPMN edits.
+- [x] T018 [US2] Validate the rule-change path by deploying a revised DMN model, rerunning the same process, and confirming the result reflects the updated configuration without code or BPMN edits. A controlled test with Object B having characteristicB = DIFFERENT confirmed that V2 Comparison Configuration containing ["characteristicA", "characteristicC"] (excluding characteristicB) returned true, while V1 returned false, demonstrating DMN-owned configuration independence from worker and BPMN changes.
 
 **Checkpoint**: At this point, User Stories 1 and 2 should both work independently
 
@@ -76,7 +76,7 @@
 
 - [ ] T019 [P] Review and finalize the local startup and teardown instructions in `specs/001-json-object-compare/quickstart.md` so the runtime can be started and validated consistently.
 - [ ] T020 [P] Confirm the docs in `specs/001-json-object-compare/research.md`, `specs/001-json-object-compare/plan.md`, and `specs/001-json-object-compare/data-model.md` are mutually consistent on the worker technology stack and the architecture boundary.
-- [ ] T021 Confirm the worker boundary is preserved: the Java code only retrieves full JSON objects and passes them through; no extraction, normalization, or comparison logic is implemented outside DMN/FEEL.
+- [x] T021 Confirm the worker boundary is preserved: the Java code only retrieves full JSON objects and passes them through; no extraction, normalization, or comparison logic is implemented outside DMN/FEEL.
 - [ ] T022 Run the end-to-end local validation path for the MVP scenario and record any remaining gaps before implementation is considered complete.
 
 ---

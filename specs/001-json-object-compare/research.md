@@ -2,14 +2,14 @@
 
 ## Decision
 
-Use a minimal local runtime built with Docker Compose and Camunda 7, backed by MongoDB and a thin Java Spring Boot worker. The BPMN process will orchestrate object retrieval and DMN invocation, while the DMN model will own the configurable comparison rules and FEEL logic.
+Use a minimal local runtime built with Docker Compose and Camunda 7, backed by MongoDB and a thin Java Spring Boot worker. The BPMN process orchestrates object retrieval and DMN invocation, while the DMN model owns the configurable comparison rules and FEEL logic.
 
 ## Rationale
 
-- Local-first compliance: the constitution requires the full runtime to run locally on macOS and to be easy to start/stop with scripts and Docker Compose.
+- Local-first compliance: the constitution requires the full runtime to run locally on macOS and to be easy to start/stop with Docker Compose.
 - Camunda 7 alignment: BPMN and DMN are the required orchestration and decision engines, and the Java stack offers the most mature and straightforward integration pattern for a small local proof of concept.
-- Separation of responsibilities: the worker retrieves full JSON documents from MongoDB but does not know which fields are relevant or how they are compared.
-- Configurability: all comparison configuration lives inside the DMN model, which can be redeployed independently of code and BPMN.
+- Separation of responsibilities: the worker retrieves full JSON documents from MongoDB but does not select, extract, or compare individual characteristics. All business-level field selection, extraction, and comparison logic belongs to DMN/FEEL.
+- Configurability: the comparison configuration lives inside the DMN model through a separate Comparison Configuration decision, which can be redeployed independently of application code and BPMN.
 
 ## Alternatives considered
 
@@ -28,15 +28,25 @@ Use a minimal local runtime built with Docker Compose and Camunda 7, backed by M
 
 ## Design findings
 
-- Object A and Object B will be stored as two MongoDB documents with the shared `serviceCharacteristic` array pattern.
-- The worker will load both documents as complete JSON values and expose them as process variables for DMN evaluation.
-- The DMN decision will receive the complete objects and define a dynamic list of relevant names via configuration entries.
-- FEEL will iterate over the configured characteristic names, find the matching entries in each object's `serviceCharacteristic` array, extract the nested `value.value`, and compare them.
-- The DMN output will be a single boolean result: `true` if all relevant characteristics match, otherwise `false`.
+- Object A and Object B are stored as MongoDB documents with a shared `serviceCharacteristic` array pattern.
+- The worker retrieves both complete documents without business-level selection, filtering, extraction, or normalization, and exposes them as process variables.
+- BPMN orchestrates the retrieval flow and invokes the DMN comparison decision.
+- The DMN decision model (via FEEL expressions) owns all object navigation, characteristic selection, nested value extraction, and comparison semantics.
+- The Relevant Characteristic Set is explicitly defined by the DMN model through a separate Comparison Configuration decision.
+- For each characteristic in the Comparison Configuration:
+  - Both objects must contain a matching characteristic by name.
+  - The corresponding nested values must compare equal.
+  - If a configured characteristic is missing from either object, the result is false.
+  - Characteristics outside the configured set are ignored.
+- The DMN comparison decision returns a single boolean result: true if all configured characteristics match, otherwise false.
+
+**Architecture evolution**: V1 (baseline) used asymmetric implicit logic where Object A defined the required comparison set. V2 (current intended) replaces this with an explicit DMN-owned Comparison Configuration decision that returns the relevant characteristic names, enabling reconfiguration without Java or BPMN changes.
 
 ## Open design choices resolved for implementation
 
 - Runtime composition: Docker Compose for Camunda 7 + MongoDB + worker.
 - Worker technology: Java 17 + Spring Boot 2.7.x using the Camunda 7.22.x Spring Boot starter and MongoDB Java driver.
-- Comparison scope: exactly two JSON objects; no user interface; no detailed difference report in v1.
-- Comparison configuration authority: DMN model only.
+- Worker-Camunda integration: The Camunda External Task Client pattern (Spring Boot starter) with topic-based external service tasks. The worker and Camunda communicate via external tasks and process variables. MongoDB connectivity is independent of the Camunda integration.
+- Object transport: Complete BSON Document structures are converted to generic Map<String,Object> for Camunda process variable exposure; this is technical serialization only, not business transformation.
+- Comparison configuration authority: DMN model, specifically a separate Comparison Configuration decision that feeds into the main Object Comparison V2 decision via DMN decision dependencies.
+- Comparison scope: exactly two JSON objects; no user interface; no detailed difference report in the current PoC scope.
