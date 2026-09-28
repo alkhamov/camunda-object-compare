@@ -1,54 +1,124 @@
 # Quickstart Guide
 
-This guide describes the validation flow for the local proof-of-concept runtime before implementation begins.
+This is the shortest reproducible procedure to run the current V2 PoC and verify the V2 comparison result.
 
-## Prerequisites
+## 1. Prerequisites
 
-- macOS developer machine
 - Docker Desktop installed and running
 - Docker Compose available
-- Optional: Camunda Modeler for BPMN and DMN editing
-- Optional: MongoDB Compass for inspection of sample documents
+- `curl` available
 
-## Planned runtime
-
-The final local environment will consist of:
-
-- Camunda 7 engine and webapps
-- MongoDB 7
-- a small Java worker application that fetches Object A and Object B from MongoDB
-
-## Startup
+## 2. Start the runtime
 
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
 
-Expected result:
-- Camunda 7 is reachable on the local browser endpoint configured in Docker Compose.
-- MongoDB is running with a local persistent volume.
-- The worker is running and ready to participate in external task handling or equivalent BPMN integration.
+## 3. Verify containers
 
-## Validation scenarios
+```bash
+docker compose ps
+```
 
-1. Seed MongoDB with two JSON documents that share the same relevant `serviceCharacteristic` entries.
-2. Start the BPMN process.
-3. Confirm the process retrieves both objects and exposes them as process variables.
-4. Confirm the DMN decision evaluates and returns `true` when the configured relevant characteristics match.
-5. Change the DMN configuration by adding or removing a characteristic name and redeploy the DMN model.
-6. Rerun the process without changing BPMN or worker code; confirm the result changes according to the updated DMN rules.
+Expected: `object-compare-camunda`, `object-compare-mongo`, and `object-compare-worker` are running.
 
-## Expected outcomes
+## 4. Verify MongoDB seed data
 
-- The process completes successfully.
-- The final process variable `comparisonResult` is a boolean.
-- The decision result reflects all configured relevant characteristics, not a hardcoded code path.
-- Changing the DMN configuration alone changes the behavior.
+```bash
+docker exec object-compare-mongo mongosh --quiet \
+  --eval 'db.getSiblingDB("object_compare").objects.find({}, {_id:1, documentType:1, serviceCharacteristic:1}).pretty()'
+```
 
-## Shutdown
+Confirm these IDs exist:
+
+- Object A: `64d1f3d9d9b0ea002f000001`
+- Object B mismatch: `64d1f3d9d9b0ea002f000003`
+
+The seeded mismatch is on `characteristicB`.
+
+## 5. Deploy V2 DMN (manual)
+
+```bash
+curl -X POST \
+  -F "deployment-name=object-comparison-v2-dmn" \
+  -F "enable-duplicate-filtering=false" \
+  -F "data=@camunda/v2/object-comparison-v2.dmn" \
+  http://localhost:8080/engine-rest/deployment/create
+```
+
+## 6. Deploy V2 BPMN (manual)
+
+```bash
+curl -X POST \
+  -F "deployment-name=object-comparison-v2-bpmn" \
+  -F "enable-duplicate-filtering=false" \
+  -F "data=@camunda/v2/object-comparison-v2.bpmn" \
+  http://localhost:8080/engine-rest/deployment/create
+```
+
+Camunda uses in-memory engine persistence in this PoC. If the Camunda container is recreated, redeploy BPMN/DMN.
+
+## 7. Start a V2 comparison process
+
+```bash
+curl -X POST \
+  http://localhost:8080/engine-rest/process-definition/key/object-comparison-v2/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variables": {
+      "objectAId": {
+        "value": "64d1f3d9d9b0ea002f000001",
+        "type": "String"
+      },
+      "objectBId": {
+        "value": "64d1f3d9d9b0ea002f000003",
+        "type": "String"
+      }
+    }
+  }'
+```
+
+The response contains the process instance `"id"`. Save it as `<PROCESS_INSTANCE_ID>`.
+
+## 8. Verify process completion
+
+```bash
+curl -s \
+  "http://localhost:8080/engine-rest/history/process-instance/<PROCESS_INSTANCE_ID>"
+```
+
+Expected relevant result:
+
+- `"state":"COMPLETED"`
+
+## 9. Verify comparisonResult
+
+```bash
+curl -s -G \
+  "http://localhost:8080/engine-rest/history/variable-instance" \
+  --data-urlencode "processInstanceId=<PROCESS_INSTANCE_ID>" \
+  --data-urlencode "variableName=comparisonResult"
+```
+
+Expected relevant result:
+
+- `"type":"Boolean"`
+- `"value":true`
+
+Why `true`: `characteristicB` is deliberately different, but current V2 Comparison Configuration is `["characteristicA", "characteristicC"]`, so only those two configured characteristics are compared and both match.
+
+## 10. Stop/reset the environment
+
+Stop runtime:
 
 ```bash
 docker compose down
 ```
 
-Use `docker volume rm` only if a full reset of the local MongoDB data is required for a clean re-seed.
+Optional full Mongo reset (destroys persisted local Mongo data):
+
+```bash
+docker volume rm camunda-object-compare_mongo-data
+```
+
+After volume removal, the next runtime start initializes fresh seed data from `mongo/init/seed-data.js`.
